@@ -1,9 +1,11 @@
 ---
 title: "mp3_trial"
-output: html_document
+output: 
+  html_document:
+    code_folding: hide
 ---
 
-```{r}
+```{r, echo = FALSE, message=FALSE}
 library(tidyverse)
 library(sf)
 library(macleish)
@@ -34,27 +36,31 @@ challenge_buffer <- macleish_layers %>%
 
 my_points <- tribble(
   ~point, ~lon, ~lat,
-  "A", -72.6762800, 42.4539186
+  "A", -72.6761655, 42.4539000
 )
 
 my_sf <- my_points %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326) 
+
+second_camp <- tribble(
+  ~point, ~lon, ~lat,
+  "B", -72.677100, 42.455680
+)
+my_sf1 <- second_camp %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326)
+  
+```
+
+```{r, warning= FALSE, message = FALSE}
+## this is to try to make a unionized buffer for research and challenge course sites ----
+
+research_combinedBuff <- st_combine(research_buffer)
+challenge_courseBuff <- st_combine(challenge_buffer)
+
 ```
 
 ```{r}
-new_forest <- macleish_layers%>%
-  pluck("forests")
-
-leaflet() %>%
-  addTiles() %>%
-  addPolygons (data = pluck(macleish_layers, "forests"), weight = 1, popup = ~Sheet1_Ve )%>%
-  addPolygons(data = pluck(macleish_layers, "buildings"),
-             weight = 1, popup = ~name)
-
-```
-
-
-```{r}
+##Buffers(research, challenge courses and stream) and all other macleish layers ----
 leaflet() %>%
  addTiles() %>%
  addPolylines(data = pluck(macleish_layers, "trails"), color = "orange", weight = 1) %>%
@@ -64,11 +70,41 @@ leaflet() %>%
  addPolylines(data = pluck(macleish_layers, "streams"),
               weight = 1, color = "black") %>%
  addPolylines(data = pluck(macleish_layers, "wetlands"), color = "purple", weight = 2) %>%
- addPolygons(data = stream_buffer) %>%
-  addPolygons (data = research_buffer, color = "red") %>%
-  addPolygons (data = challenge_buffer, color = "red") %>%
+ addPolygons(data = stream_buffer) %>% 
+  addPolygons (data = st_union(research_combinedBuff), color = "red") %>%
+  addPolygons (data = st_union(challenge_courseBuff), color = "red") %>%
   addMarkers(data = my_sf, popup = ~point)%>%
-  addPolylines(data = pluck(macleish_layers, "contours_3m"), color = "purple", weight = 2)
+  addMarkers(data = my_sf1, popup = ~point) 
 ```
 
+```{r}
+forest <- macleish_layers %>%
+  pluck("forests")
 
+pal <- colorNumeric(
+  palette = "viridis",
+  domain = macleish_layers[["forests"]]$VegType_21
+)
+
+##Forest (vegetation) map
+leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = pluck(macleish_layers, "forests"), 
+               color = ~pal(VegType_21), 
+               weight = 2, label = ~as.character(Sheet1__Na)) %>%
+  addPolylines(data = pluck(macleish_layers, "trails"), color = "brown", weight = 2)%>%
+  addMarkers(data = my_sf, popup = ~point)%>%
+  addMarkers(data = my_sf1, popup = ~point) 
+```
+
+```{r}
+##Contour map ----
+leaflet() %>%
+ addTiles() %>%
+  addMarkers(data = my_sf, popup = ~point)%>%
+  addPolylines(data = pluck(macleish_layers, "contours_3m"), color = "#CFD8DC", weight = 2)%>%
+  addMarkers(data = my_sf, popup = ~point)%>%
+  addMarkers(data = my_sf1, popup = ~point)
+```
+
+##another map for distance from the parking lot to the trials
