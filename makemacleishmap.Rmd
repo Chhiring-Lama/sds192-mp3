@@ -1,0 +1,108 @@
+---
+title: "hmm"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(macleish)
+library(sf)
+library(leaflet)
+library(raster)
+```
+
+```{r}
+proj4_aea <- "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
+
+stream_buffer <- macleish_layers %>%
+  pluck("streams") %>%
+  st_transform(proj4_aea) %>%
+  st_buffer(dist = 60.96) %>% ##200' is 60.96 meter
+  st_transform(4326)
+
+leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = macleish_layers[["buildings"]], weight = 1, popup = ~name) %>%
+  addPolylines(data = macleish_layers[["trails"]], weight = 1, color = "brown") %>%
+  addPolylines(data = pluck(macleish_layers, "streams"), 
+               weight = 1, color = "black") %>%
+  addPolygons(data = stream_buffer) 
+
+```
+
+```{r}
+my_points <- tribble(
+  ~point, ~lon, ~lat,
+  "Campsite A", -72.6762800, 42.4539186,
+  "Group Campsite", -72.678154, 42.450976,
+  "Remote Campsite", -72.674732, 42.458570,
+  "Parking", -72.680663, 42.448013)
+
+camp_sf <- my_points %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326)
+```
+
+#color
+```{r}
+pal <- colorNumeric(
+  palette = "viridis",
+  domain = macleish_layers[["forests"]]$VegType_21
+)
+
+bechtel <- data.frame(lat = 42.449167, lon = -72.679389)
+```
+
+
+```{r}
+stream_buffer <- macleish_layers %>%
+  pluck("streams") %>%
+  st_transform(proj4_aea) %>%
+  st_buffer(dist = 60.96) %>% ##200' is 60.96 meter
+  st_transform(4326)
+
+research_buffer <- macleish_layers %>%
+  pluck("research") %>%
+  st_transform(proj4_aea) %>%
+  st_buffer(dist = 152.4) %>% ##200' is 60.96 meter
+  st_transform(4326)
+
+leaflet() %>%
+  addTiles() %>%
+  addPolylines(data = pluck(macleish_layers, "forests"), color = ~pal(VegType_21), weight = 2) %>%
+  addPolylines(data = pluck(macleish_layers, "trails"), color = "brown", weight = 2) %>%
+  addPolylines(data = pluck(macleish_layers, "research"), color = "black", weight = 2) %>%
+  addPolygons(data = pluck(macleish_layers, "buildings"),
+              color = "orange",
+              weight = 1, popup = ~name) %>%
+  addMarkers(lng = ~lon, lat = ~lat, data = bechtel,
+             popup = "Bechtel Environmental Classroom") %>%
+  addPolylines(data = pluck(macleish_layers, "streams"), 
+               weight = 1, color = "blue") %>%
+  addPolylines(data = pluck(macleish_layers, "wetlands"), color = "pink", weight = 4) %>%
+  addPolygons(data = stream_buffer) %>%
+  addPolygons(data = research_buffer, color = "red") %>%
+  addMarkers(data = pluck(macleish_layers, "challenge_courses"), popup = ~cmt) %>%
+  addMarkers(data = camp_sf, popup = ~point) %>%
+  addPolylines(data = pluck(macleish_layers, "boundary"), 
+               weight = 3, color = "red") %>%
+  addPolylines(data = pluck(macleish_layers, "contours_3m"), 
+               weight = 4, color = "purple")
+  
+```
+
+```{r}
+leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = pluck(macleish_layers, "forests"), 
+               color = ~pal(VegType_21), 
+               weight = 2) %>%
+  addMarkers(data = camp_sf, popup = ~point) %>%
+  addPolygons(data = pluck(macleish_layers, "buildings"),
+              color = "orange",
+              weight = 1, popup = ~name) %>%
+  addMarkers(lng = ~lon, lat = ~lat, data = bechtel,
+             popup = "Bechtel Environmental Classroom") %>%
+  addPolylines(data = pluck(macleish_layers, "trails"), color = "brown", weight = 2) %>%
+  addMarkers(data = st_centroid(pluck(macleish_layers, "forests")), label = ~as.character(VegType_21), popup = ~Sheet1__Na)
+```
+
