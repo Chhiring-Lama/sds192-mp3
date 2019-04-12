@@ -52,11 +52,11 @@ my_sf1 <- second_camp %>%
 ```
 
 ```{r, warning= FALSE, message = FALSE}
-## this is to try to make a unionized buffer for research and challenge course sites ----
+## this is to try to make a unionized buffer for research, stream and challenge course sites ----
 
 research_combinedBuff <- st_combine(research_buffer)
 challenge_courseBuff <- st_combine(challenge_buffer)
-
+stream_combineBuff <- st_combine(stream_buffer)
 ```
 
 ```{r}
@@ -69,10 +69,10 @@ leaflet() %>%
              weight = 1, popup = ~name) %>%
  addPolylines(data = pluck(macleish_layers, "streams"),
               weight = 1, color = "black") %>%
- addPolylines(data = pluck(macleish_layers, "wetlands"), color = "purple", weight = 2) %>%
- addPolygons(data = stream_buffer) %>% 
-  addPolygons (data = st_union(research_combinedBuff), color = "red") %>%
-  addPolygons (data = st_union(challenge_courseBuff), color = "red") %>%
+ addPolylines(data = pluck(macleish_layers, "wetlands"), color = "purple", weight = 2, popup = ~IT_VALDESC) %>%
+ addPolygons(data = st_union(stream_combineBuff), color = "blue", label = as.character("Streams Buffer")) %>% 
+  addPolygons (data = st_union(research_combinedBuff), color = "red", label = as.character("Research Centers Buffer")) %>%
+  addPolygons (data = st_union(challenge_courseBuff), color = "green", label = as.character("Challenge Courses Buffer")) %>%
   addMarkers(data = my_sf, popup = ~point)%>%
   addMarkers(data = my_sf1, popup = ~point) 
 ```
@@ -103,6 +103,7 @@ leaflet() %>%
  addTiles() %>%
   addMarkers(data = my_sf, popup = ~point)%>%
   addPolylines(data = pluck(macleish_layers, "contours_3m"), color = "#CFD8DC", weight = 2)%>%
+  addPolylines(data = pluck(macleish_layers, "wetlands"), color = "purple", weight = 2, popup = ~IT_VALDESC) %>%
   addMarkers(data = my_sf, popup = ~point)%>%
   addMarkers(data = my_sf1, popup = ~point)
 ```
