@@ -1,0 +1,193 @@
+---
+title: "Team of Dedicated Student Data Scientists Begin an Adventurous Journey to find Two Campsites in Honor of Their SDS 192 Class"
+author: "Group: Chhiring Lama, Joyce Huang, Nukhbah Majid"
+output: 
+  html_document:
+    code_folding: hide
+---
+
+```{r, echo = FALSE, message=FALSE}
+##Loading the packages ----
+library(tidyverse)
+library(sf)
+library(macleish)
+library(dplyr)
+library(leaflet)
+```
+
+## Question: 
+
+From the SDS192 Mini-Project 3 webpage: "MacLeish currently has two campsites: one large group site closer to the building and one remote campsite with two tent platforms about one mile from the parking area. We would like to develop one additional campsite that is approximately half a mile walk from the parking area, within 200’ of a stream or other source of water, in forest that is unlike the forest in the two other campsites, relatively flat, and at least 500’ from any research area or any element of the Challenge Course. Propose two new campsite locations for our consideration. It would be ideal if you co"uld verify the viability of your site by actually visiting it (and maybe taking some photographs!)."
+
+## Analysis and Blog Post
+
+The Center of Ecological and Environmental Design at Smith College needs help. There has been a high demand for more campsites but they are not sure where on the Smith Land to make one. Luckily, SDS192 students have come to the rescue.
+
+Our project encompasses finding optimum locations for two additional campsites at MacLeish Field Station. Following the criteria, our group visited the field station in pursuit of the ideal locations. The proposed locations - namely Campsite A and Campsite B - on our data graphics present fit the criteria:
+
+1. Approximately half a mile walk from the parking area
+
+2. Within 200’ of a stream or other source of water
+
+3. In a forest of different vegetation that the prior campsites
+
+4. Relatively flat
+
+5. At least 500’ from any research area or any element of the Challenge Course 
+
+We have included four data graphics in our project. 
+
+```{r}
+##Creating sf data frame for research centers buffer, challenge courses buffer and streams buffer ----
+proj4_aea <- "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
+
+stream_buffer <- macleish_layers %>%
+ pluck("streams") %>%
+ st_transform(proj4_aea) %>%
+ st_buffer(dist = 60.96) %>% ##200' is 60.96 meter
+st_transform(4326)
+
+research_buffer <- macleish_layers %>%
+  pluck("research")%>%
+  st_transform(proj4_aea)%>%
+  st_buffer(dist = 152.4)%>%
+  st_transform(4326)
+
+challenge_buffer <- macleish_layers %>%
+  pluck("challenge_courses")%>%
+  st_transform(proj4_aea)%>%
+  st_buffer(dist = 152.4)%>%
+  st_transform(4326)
+
+```
+
+```{r}
+##Plotting the old and new campsites ----
+
+##New Campsite
+my_points <- tribble(
+  ~point, ~lon, ~lat,
+  "Campsite A", -72.6761655, 42.4539000,
+  "Campsite B", -72.677100, 42.455680
+)
+my_sf1 <- my_points %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326)
+
+##Old Campsite 
+my_camps <- tribble(
+  ~point, ~lon, ~lat,
+  "Old Site 1", -72.678154, 42.450976,
+  "Old Site 2",  -72.679581, 42.458549
+)
+
+Old_camps <- my_camps %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) 
+```
+
+```{r, warning= FALSE, message = FALSE}
+## this is to try to make a unionized buffer for research, stream and challenge course sites ----
+
+research_combinedBuff <- st_combine(research_buffer)
+challenge_courseBuff <- st_combine(challenge_buffer)
+stream_combineBuff <- st_combine(stream_buffer)
+```
+
+
+```{r}
+##Buffers(research, challenge courses and stream) and all other macleish layers ----
+leaflet() %>%
+ addTiles() %>%
+ addPolylines(data = pluck(macleish_layers, "trails"), color = "orange", weight = 1) %>%
+ addPolylines(data = pluck(macleish_layers, "research"), color = "black", weight = 2) %>%
+ addPolygons(data = pluck(macleish_layers, "buildings"),
+             weight = 1, popup = ~name) %>%
+ addPolylines(data = pluck(macleish_layers, "streams"),
+              weight = 1, color = "black") %>%
+ addPolylines(data = pluck(macleish_layers, "wetlands"), color = "purple", weight = 2) %>%
+ addPolygons(data = st_union(stream_combineBuff), color = "blue", label = as.character("Streams Buffer")) %>% 
+  addPolygons (data = st_union(research_combinedBuff), color = "red", label = as.character("Research Centers Buffer")) %>%
+  addPolygons (data = st_union(challenge_courseBuff), color = "green", label = as.character("Challenge Courses Buffer")) %>%
+  addMarkers(data = my_sf1, popup = ~point) 
+```
+
+A data graphic depicting that the two campsites are 500’ away from research centers and challenge courses and within 200’ of water resources. These are all indicated by buffers. The red unionized buffer indicates the 500’ distance from the research facilities. The green unionized buffer indicates the 500’ distance from the challenge courses. The blue unionized buffer represents the 200’ 
+```{r}
+##Plotting two new campsites and vegetation type ----
+forest <- macleish_layers %>%
+  pluck("forests")
+
+pal <- colorNumeric(
+  palette = "viridis",
+  domain = macleish_layers[["forests"]]$VegType_21
+)
+
+##Forest (vegetation) map
+leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = pluck(macleish_layers, "forests"), 
+               color = ~pal(VegType_21), 
+               weight = 2, label = ~as.character(Sheet1__Na)) %>%
+  addPolylines(data = pluck(macleish_layers, "trails"), color = "brown", weight = 2)%>%
+  addMarkers(data = my_sf1, popup = ~point)%>%
+  addMarkers(data = Old_camps, popup = ~point)
+  
+```
+
+
+A data graphic depicting that the proposed campsite locations are on different types of land - types of vegetation - than the existing two campsites. To differentiate between different types of vegetation, we decided to have labels, popups, and color to check to see that all the campsites will be in different kinds of forests.
+
+```{r}
+##Contour map with the elevations and wetlands ----
+leaflet() %>%
+ addTiles() %>%
+  addPolylines(data = pluck(macleish_layers, "contours_3m"), color = "#CFD8DC", weight = 2)%>%
+  addPolylines(data = pluck(macleish_layers, "wetlands"), fill = "blue", fillOpacity = 1, weight = 2, label = ~as.character(IT_VALDESC)) %>%
+  addMarkers(data = my_sf1, popup = ~point)
+```
+
+Another data graphic depicting that the proposed campsite locations are on relatively flat ground. The 10’ contour elevation layer from the MacLeish data has been plotted as polylines. The two proposed campsite locations are between these polylines rather than on top of them - indicating the flatness of the ground. 
+```{r}
+##Checking if the campsites are about half a mile away (804m) from the parking space ----
+
+##creating sf object for parking lot and a 804m buffer around it.
+parking <- tribble(
+  ~point, ~lon, ~lat,
+  "B", -72.680663, 42.448013
+)
+my_park <- parking %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326)
+
+parking_buffer <- my_park %>%
+  st_transform(proj4_aea)%>%
+  st_buffer(dist = 804)%>%
+  st_transform(4326)
+
+##Plot for the parking buffer
+leaflet() %>%
+ addTiles() %>%
+  addMarkers(data = my_park, label ="Parking Lot")%>%
+ addPolylines(data = parking_buffer, color = "red", fillOpacity = .2) %>%
+  addMarkers(data = my_sf1, popup = ~point)
+
+```
+
+The fourth data graphic depicts the buffer of half a mile originating from the parking lot - indicating that one of the campsites is outside the buffer and another campsite is near the end of the buffer. The actual walk from the parking lot will be longer than half a mile since the trails are not straight. 
+
+While we were plotting the data and figuring out the ideal locations for the campsites, we ran into several problems. As we had divided the criteria for the campsites locations as four distinct visual graphics, we had to make sure that the proposed locations complied with the conditions set by all the data graphics. The easiest thing to determine for the campsite locations was their location is 500’ away from the research centers and challenge courses while also being 200’ within the radius for a water source. The hardest was to make sure that the campsites were within the Smith property and at relatively flat locations on different vegetation type than the existing two campsites.
+
+On our visit to MacLeish, we took pictures of the places where we think the new campsites should be: 
+
+![Campsite A](campsiteA.jpg)
+
+![Campsite B](campsiteB.jpg)
+
+
+To construct the two new campsites, we are assuming more funding would be required than previously allotted in the construction of the pre-existing campsites. This is because there are no trails near the two proposed campsites. New trails would need to be constructed alongside the campsites to make them accessible - we identify this as a major roadblock. To create this trail and the campsites will take approximately a year with the help of volunteers and Smith funding. We hope that this will not take longer than the Neilson construction.
+
+Other major roadblocks would be the environmental and ecological impact. We are not sure if there are certain animal species living in that area that will possibly endanger visitors or the species. Despite the fact that we choose a campsite on grounds that are relatively flat, there will have to be some construction to make sure that there is enough space for a campfire and tents. The process of construction will disrupt the ecology and environment with the noise. It will also affect the plant species living there.
+
+In conclusion, according to our findings using the spatial data of MacLeish, Smith SHOULD build these two campsites. Both Campsite A and B are placed in unique locations in terms of forests and they follow the guidelines provided for us. New campsites will incentivize more campers to come to MacLeish. However, they will definitely need to consider the cost and environmental impact before taking this step.
+
+For further reference (and to reward us points for using the issues tab), check our GitHub repository.^[Link to github repository: https://github.com/Chhiring-Lama/sds192-mp3.git]
+
+> Word count: `r wordcountaddin::word_count()`
