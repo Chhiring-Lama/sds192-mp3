@@ -22,6 +22,9 @@ stream_buffer <- macleish_layers %>%
  st_buffer(dist = 60.96) %>% ##200' is 60.96 meter
 st_transform(4326)
 
+contour <- macleish_layers %>%
+  pluck()
+
 research_buffer <- macleish_layers %>%
   pluck("research")%>%
   st_transform(proj4_aea)%>%
@@ -103,9 +106,17 @@ leaflet() %>%
  addTiles() %>%
   addMarkers(data = my_sf, popup = ~point)%>%
   addPolylines(data = pluck(macleish_layers, "contours_3m"), color = "#CFD8DC", weight = 2)%>%
-  addPolylines(data = pluck(macleish_layers, "wetlands"), color = "purple", weight = 2, popup = ~IT_VALDESC) %>%
+  addPolylines(data = pluck(macleish_layers, "wetlands"), fill = "blue", fillOpacity = 1, weight = 2, label = ~as.character(IT_VALDESC)) %>%
   addMarkers(data = my_sf, popup = ~point)%>%
   addMarkers(data = my_sf1, popup = ~point)
 ```
 
 ##another map for distance from the parking lot to the trials
+```{r}
+leaflet() %>%
+ addTiles() %>%
+ addPolylines(data = pluck(macleish_layers, "trails"), color = "orange", weight = 1) %>%
+  addMarkers(data = my_sf, popup = ~point)%>%
+  addMarkers(data = my_sf1, popup = ~point) 
+```
+
