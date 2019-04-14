@@ -6,6 +6,7 @@ output:
 ---
 
 ```{r, echo = FALSE, message=FALSE}
+##Loading the packages ----
 library(tidyverse)
 library(sf)
 library(macleish)
@@ -14,6 +15,7 @@ library(leaflet)
 ```
 
 ```{r}
+##Creating sf data frame for research centers buffer, challenge courses buffer and streams buffer ----
 proj4_aea <- "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
 
 stream_buffer <- macleish_layers %>%
@@ -21,9 +23,6 @@ stream_buffer <- macleish_layers %>%
  st_transform(proj4_aea) %>%
  st_buffer(dist = 60.96) %>% ##200' is 60.96 meter
 st_transform(4326)
-
-contour <- macleish_layers %>%
-  pluck()
 
 research_buffer <- macleish_layers %>%
   pluck("research")%>%
@@ -37,21 +36,29 @@ challenge_buffer <- macleish_layers %>%
   st_buffer(dist = 152.4)%>%
   st_transform(4326)
 
+```
+
+```{r}
+##Plotting the old and new campsites ----
+
+##New Campsite
 my_points <- tribble(
   ~point, ~lon, ~lat,
-  "A", -72.6761655, 42.4539000
+  "Campsite A", -72.6761655, 42.4539000,
+  "Campsite B", -72.677100, 42.455680
 )
-
-my_sf <- my_points %>%
-  st_as_sf(coords = c("lon", "lat"), crs = 4326) 
-
-second_camp <- tribble(
-  ~point, ~lon, ~lat,
-  "B", -72.677100, 42.455680
-)
-my_sf1 <- second_camp %>%
+my_sf1 <- my_points %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326)
-  
+
+##Old Campsite 
+my_camps <- tribble(
+  ~point, ~lon, ~lat,
+  "Old Site 1", -72.678154, 42.450976,
+  "Old Site 2",  -72.679581, 42.458549
+)
+
+Old_camps <- my_camps %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) 
 ```
 
 ```{r, warning= FALSE, message = FALSE}
@@ -72,15 +79,15 @@ leaflet() %>%
              weight = 1, popup = ~name) %>%
  addPolylines(data = pluck(macleish_layers, "streams"),
               weight = 1, color = "black") %>%
- addPolylines(data = pluck(macleish_layers, "wetlands"), color = "purple", weight = 2, popup = ~IT_VALDESC) %>%
+ addPolylines(data = pluck(macleish_layers, "wetlands"), color = "purple", weight = 2) %>%
  addPolygons(data = st_union(stream_combineBuff), color = "blue", label = as.character("Streams Buffer")) %>% 
   addPolygons (data = st_union(research_combinedBuff), color = "red", label = as.character("Research Centers Buffer")) %>%
   addPolygons (data = st_union(challenge_courseBuff), color = "green", label = as.character("Challenge Courses Buffer")) %>%
-  addMarkers(data = my_sf, popup = ~point)%>%
   addMarkers(data = my_sf1, popup = ~point) 
 ```
 
 ```{r}
+##Plotting two new campsites and vegetation type ----
 forest <- macleish_layers %>%
   pluck("forests")
 
@@ -96,27 +103,43 @@ leaflet() %>%
                color = ~pal(VegType_21), 
                weight = 2, label = ~as.character(Sheet1__Na)) %>%
   addPolylines(data = pluck(macleish_layers, "trails"), color = "brown", weight = 2)%>%
-  addMarkers(data = my_sf, popup = ~point)%>%
-  addMarkers(data = my_sf1, popup = ~point) 
+  addMarkers(data = my_sf1, popup = ~point)%>%
+  addMarkers(data = Old_camps, popup = ~point)
+  
 ```
 
 ```{r}
-##Contour map ----
+##Contour map with the wetlands ----
 leaflet() %>%
  addTiles() %>%
-  addMarkers(data = my_sf, popup = ~point)%>%
   addPolylines(data = pluck(macleish_layers, "contours_3m"), color = "#CFD8DC", weight = 2)%>%
   addPolylines(data = pluck(macleish_layers, "wetlands"), fill = "blue", fillOpacity = 1, weight = 2, label = ~as.character(IT_VALDESC)) %>%
-  addMarkers(data = my_sf, popup = ~point)%>%
   addMarkers(data = my_sf1, popup = ~point)
 ```
 
-##another map for distance from the parking lot to the trials
+
 ```{r}
+##Checking if the campsites are about half a mile away (804m) from the parking space ----
+
+##creating sf object for parking lot and a 804m buffer around it.
+parking <- tribble(
+  ~point, ~lon, ~lat,
+  "B", -72.680663, 42.448013
+)
+my_park <- parking %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326)
+
+parking_buffer <- my_park %>%
+  st_transform(proj4_aea)%>%
+  st_buffer(dist = 804)%>%
+  st_transform(4326)
+
+##Plot for the parking buffer
 leaflet() %>%
  addTiles() %>%
- addPolylines(data = pluck(macleish_layers, "trails"), color = "orange", weight = 1) %>%
-  addMarkers(data = my_sf, popup = ~point)%>%
-  addMarkers(data = my_sf1, popup = ~point) 
+  addMarkers(data = my_park, label ="Parking Lot")%>%
+ addPolylines(data = parking_buffer, color = "red", fillOpacity = .2) %>%
+  addMarkers(data = my_sf1, popup = ~point)
+
 ```
 
